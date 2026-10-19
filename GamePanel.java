@@ -19,6 +19,20 @@ public class GamePanel extends JPanel {
     int dir = 1;        // ทิศทางการเลื่อนของเส้นแดง (1=ขวา, -1=ซ้าย)
     int score = 0;        // คะแนนสะสม
 
+    // สถานะเส้นแดง
+    boolean isMoving = true;
+
+    // ข้อความผลการตกปลา
+    String message = "";
+
+    // ตำแหน่งและขนาดแถบสีเหลือง
+    int yellowStart = 300;
+    int yellowWidth = 400;
+
+    // ตำแหน่งและขนาดแถบสีเขียว
+    int greenStart = 470;
+    int greenWidth = 60;
+
     public GamePanel() {
         setPreferredSize(new Dimension(800, 565));
 
@@ -26,16 +40,18 @@ public class GamePanel extends JPanel {
         Timer timer = new Timer(30, new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
-            barPos += dir * 10;
-            if (barPos >= 1000) {
-                barPos = 1000;
-                dir = -1;
+            if (isMoving) {
+                barPos += dir * 10;
+                if (barPos >= 1000) {
+                    barPos = 1000;
+                    dir = -1;
+                }
+                if (barPos <= 0) {
+                    barPos = 0;
+                    dir = 1;
+                }
+                repaint();
             }
-            if (barPos <= 0) {
-                barPos = 0;
-                dir = 1;
-            }
-            repaint();
         }
     });
     timer.start();
@@ -54,12 +70,23 @@ public class GamePanel extends JPanel {
         if (bg != null) {
             g.drawImage(bg, 0, 0, getWidth(), getHeight(), this);
         }  
-        // โซนเหลือง
+        // วาดแถบสีเหลือง
         g.setColor(Color.YELLOW);
-        g.fillRect(sx(barX + barW * 300 / 1000), sy(barY), sx(barW * 400 / 1000), sy(barH));
-        // โซนเขียว
+        g.fillRect(
+            sx(barX + barW * yellowStart / 1000),
+            sy(barY),
+            sx(barW * yellowWidth / 1000),
+            sy(barH)
+        );
+
+        // วาดแถบสีเขียว
         g.setColor(Color.GREEN);
-        g.fillRect(sx(barX + barW * 470 / 1000), sy(barY), sx(barW * 60 / 1000), sy(barH));
+        g.fillRect(
+            sx(barX + barW * greenStart / 1000),
+            sy(barY),
+            sx(barW * greenWidth / 1000),
+            sy(barH)
+        );
         // เส้นแดง
         g.setColor(Color.RED);
         g.fillRect(sx(barX + barW * barPos / 1000) - 2, sy(barY) - 3, 4, sy(barH) + 6);
@@ -67,22 +94,61 @@ public class GamePanel extends JPanel {
         // คะแนน (ชั่วคราว ไว้เช็กว่าทำงาน)
         g.setColor(Color.WHITE);
         g.drawString("Score: " + score, sx(1316), sy(167));
+
+        // ข้อความผลการตกปลา
+        if (!message.isEmpty()) {
+        g.setFont(new Font("Arial", Font.BOLD, 40));
+        g.setColor(Color.WHITE);
+        FontMetrics fm = g.getFontMetrics();
+        int textX = (getWidth() - fm.stringWidth(message)) / 2;
+        int textY = getHeight() / 2;
+        g.drawString(message, textX, textY);
+}
     }
     // ตรวจสอบคะแนน
     public void checkScore() {
-        if (barPos >= 470 && barPos <= 530) {
-            // โซนสีเขียว (เช็กก่อน เพราะอยู่ข้างในโซนเหลือง)
-            score += (int)(Math.random() * 10) + 1;   // คะแนนสุ่ม 1-10
-                score += 5;                            // โบนัส +5
-            System.out.println("เขียว  คะแนน=" + score);
-        } else if (barPos >= 300 && barPos <= 700) {
-            // โซนสีเหลือง
-            score += (int)(Math.random() * 10) + 1;   // คะแนนสุ่ม 1-10
-            System.out.println("เหลือง คะแนน=" + score);
-        } else {
-            // โซนสีเทา
-            System.out.println("เทา    คะแนน=" + score);
+        // ถ้าเส้นแดงหยุดอยู่แล้ว ไม่ต้องทำอะไร
+        if (!isMoving) {
+            return;
         }
+        // หยุดเส้นแดง
+        isMoving = false;
+        // ตรวจสอบสีเขียวก่อน เพราะอาจอยู่ทับกับสีเหลือง
+        if (barPos >= greenStart &&
+            barPos <= greenStart + greenWidth) {
+            int point = (int)(Math.random() * 10) + 1;
+            score += point + 5;
+            message = "Excellent! +" + (point + 5);
+        } else if (barPos >= yellowStart &&
+                barPos <= yellowStart + yellowWidth) {
+            int point = (int)(Math.random() * 10) + 1;
+            score += point;
+            message = "Fishing Success! +" + point;
+        } else {
+            message = "Miss! +0";
+        }
+        // สุ่มแถบสีใหม่
+        randomBar();
+        // วาดข้อความและคะแนนใหม่
         repaint();
+        // รอ 1.5 วินาที แล้วเริ่มรอบใหม่
+        Timer nextRound = new Timer(1500, new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                message = "";
+                isMoving = true;
+                repaint();
+            }
+        });
+        nextRound.setRepeats(false);
+        nextRound.start();
+    }
+    // สุ่มตำแหน่งและขนาดแถบสีเหลืองและสีเขียว
+    public void randomBar() {
+        yellowStart = (int)(Math.random() * 700);
+        yellowWidth = (int)(Math.random() * 300) + 100;
+
+        greenStart = yellowStart + (int)(Math.random() * (yellowWidth - 20));
+        greenWidth = (int)(Math.random() * (yellowWidth - (greenStart - yellowStart))) + 20;
     }
 }
