@@ -53,7 +53,6 @@ public class GamePanel extends JPanel {
     public GamePanel() {
         setPreferredSize(new Dimension(800, 565));
 
-<<<<<<< HEAD
         // Timer: ทุก 30 ms เลื่อนเส้นแดง แล้ววาดใหม่
         Timer timer = new Timer(30, new ActionListener() {
         @Override
@@ -78,11 +77,6 @@ public class GamePanel extends JPanel {
         // กด Space -> ตรวจคะแนน
         getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("SPACE"), "fish");
         getActionMap().put("fish", new AbstractAction() {
-=======
-        // Timer สำหรับขยับเส้นแดง
-        timer = new Timer(10, new ActionListener() {
-            @Override
->>>>>>> d894d1cf3ec79db7faea2b98b0da87e783563dc7
             public void actionPerformed(ActionEvent e) {
                 if (isMoving && !gameOver) {
                     int speed = (int) (Math.random() * 20) + 1;
