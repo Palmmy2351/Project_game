@@ -58,7 +58,8 @@ public class GamePanel extends JPanel {
         @Override
         public void actionPerformed(ActionEvent e) {
             if (isMoving) {
-                int speed = (int)(Math.random() * 15) + 1;
+                //int speed = (int)(Math.random() * 15) + 1;
+                int speed = 50;
                 barPos += dir * speed;
                 if (barPos >= 1000) {
                     barPos = 1000;
