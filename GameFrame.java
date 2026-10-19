@@ -6,7 +6,8 @@ public class GameFrame extends JFrame {
         setSize(800, 565);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        add(new GamePanel());
+        GamePanel gamePanel = new GamePanel();
+        add(gamePanel);
         pack();
         setLocationRelativeTo(null);
         setVisible(true);
