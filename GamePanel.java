@@ -33,6 +33,8 @@ public class GamePanel extends JPanel {
     int greenStart = 470;
     int greenWidth = 60;
 
+    Color messageColor ;
+
     public GamePanel() {
         setPreferredSize(new Dimension(800, 565));
 
@@ -41,7 +43,8 @@ public class GamePanel extends JPanel {
         @Override
         public void actionPerformed(ActionEvent e) {
             if (isMoving) {
-                barPos += dir * 10;
+                int speed = (int)(Math.random() * 20) + 1;
+                barPos += dir * speed;
                 if (barPos >= 1000) {
                     barPos = 1000;
                     dir = -1;
@@ -98,7 +101,7 @@ public class GamePanel extends JPanel {
         // ข้อความผลการตกปลา
         if (!message.isEmpty()) {
         g.setFont(new Font("Arial", Font.BOLD, 40));
-        g.setColor(Color.WHITE);
+        g.setColor(messageColor);
         FontMetrics fm = g.getFontMetrics();
         int textX = (getWidth() - fm.stringWidth(message)) / 2;
         int textY = getHeight() / 2;
@@ -119,22 +122,26 @@ public class GamePanel extends JPanel {
             int point = (int)(Math.random() * 10) + 1;
             score += point + 5;
             message = "Excellent! +" + (point + 5);
+            messageColor = Color.GREEN;
         } else if (barPos >= yellowStart &&
                 barPos <= yellowStart + yellowWidth) {
             int point = (int)(Math.random() * 10) + 1;
             score += point;
             message = "Fishing Success! +" + point;
+            messageColor = Color.YELLOW;  
         } else {
             message = "Miss! +0";
+            messageColor = Color.RED;
         }
-        // สุ่มแถบสีใหม่
-        randomBar();
+
         // วาดข้อความและคะแนนใหม่
         repaint();
         // รอ 1.5 วินาที แล้วเริ่มรอบใหม่
         Timer nextRound = new Timer(1500, new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
+                // สุ่มแถบสีใหม่
+                randomBar();
                 message = "";
                 isMoving = true;
                 repaint();
