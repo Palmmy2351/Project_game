@@ -121,7 +121,7 @@ public class GamePanel extends JPanel {
             barPos <= greenStart + greenWidth) {
             int point = (int)(Math.random() * 10) + 1;
             score += point + 5;
-            message = "Excellent! (ยากจังโวย) +" + (point + 5);
+            message = "Excellent! +" + (point + 5);
             messageColor = Color.GREEN;
         } else if (barPos >= yellowStart &&
                 barPos <= yellowStart + yellowWidth) {
