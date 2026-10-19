@@ -23,13 +23,22 @@ public class GamePanel extends JPanel {
         setPreferredSize(new Dimension(800, 565));
 
         // Timer: ทุก 30 ms เลื่อนเส้นแดง แล้ววาดใหม่
-        Timer timer = new Timer(30, e -> {
+        Timer timer = new Timer(30, new ActionListener() {
+        @Override
+        public void actionPerformed(ActionEvent e) {
             barPos += dir * 10;
-            if (barPos >= 1000) { barPos = 1000; dir = -1; }
-            if (barPos <= 0)    { barPos = 0;    dir = 1;  }
+            if (barPos >= 1000) {
+                barPos = 1000;
+                dir = -1;
+            }
+            if (barPos <= 0) {
+                barPos = 0;
+                dir = 1;
+            }
             repaint();
-        });
-        timer.start();
+        }
+    });
+    timer.start();
 
         // กด Space -> ตรวจคะแนน
         getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("SPACE"), "fish");
