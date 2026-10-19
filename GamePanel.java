@@ -199,6 +199,7 @@ public class GamePanel extends JPanel {
         FontMetrics timeMetrics = g.getFontMetrics();
 
         // พิกัดช่อง Time ในภาพต้นฉบับ
+        //ตัวเลข60
         int boxX = 870;
         int boxY = 1085;
         int boxW = 180;
