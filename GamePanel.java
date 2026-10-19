@@ -37,7 +37,7 @@ public class GamePanel extends JPanel {
         setPreferredSize(new Dimension(800, 565));
 
         // Timer: ทุก 30 ms เลื่อนเส้นแดง แล้ววาดใหม่
-        Timer timer = new Timer(30, new ActionListener() {
+        Timer timer = new Timer(10, new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
             if (isMoving) {
@@ -147,8 +147,7 @@ public class GamePanel extends JPanel {
     public void randomBar() {
         yellowStart = (int)(Math.random() * 700);
         yellowWidth = (int)(Math.random() * 300) + 100;
-
-        greenStart = yellowStart + (int)(Math.random() * (yellowWidth - 20));
-        greenWidth = (int)(Math.random() * (yellowWidth - (greenStart - yellowStart))) + 20;
+        greenWidth = Math.max(1, (int)(yellowWidth * 0.10));
+        greenStart = yellowStart + (int)(Math.random() * (yellowWidth - greenWidth + 1));
     }
 }
