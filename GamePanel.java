@@ -39,11 +39,11 @@ public class GamePanel extends JPanel {
         setPreferredSize(new Dimension(800, 565));
 
         // Timer: ทุก 30 ms เลื่อนเส้นแดง แล้ววาดใหม่
-        Timer timer = new Timer(10, new ActionListener() {
+        Timer timer = new Timer(30, new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
             if (isMoving) {
-                int speed = (int)(Math.random() * 20) + 1;
+                int speed = (int)(Math.random() * 15) + 1;
                 barPos += dir * speed;
                 if (barPos >= 1000) {
                     barPos = 1000;
