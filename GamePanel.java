@@ -15,6 +15,9 @@ public class GamePanel extends JPanel {
     private boolean gameStarted = false;
     private boolean gameOver = false;
 
+    private FishManager fishManager = new FishManager();
+    private Fish caughtFish;
+    private int fishSpeed = 5;
     // ขนาดภาพต้นฉบับ
     static final int IMG_W = 1847, IMG_H = 1304;
 
@@ -23,17 +26,11 @@ public class GamePanel extends JPanel {
     int sy(int v) { return v * getHeight() / IMG_H;}
 
     // ตำแหน่ง Fishing Bar
-    int barX = 70, barY = 985, barW = 1130, barH = 55;
-    // ตำแหน่งแถบ Fishing Bar (พิกัดตามภาพต้นฉบับ)
     int barX = 70, barY = 986, barW = 1130, barH = 55;
+    // ตำแหน่งแถบ Fishing Bar (พิกัดตามภาพต้นฉบับ)
     int barPos = 500;   // ตำแหน่งเส้นแดง 0..1000 (ลองเริ่มกลางแถบก่อน)
     int dir = 1;        // ทิศทางการเลื่อนของเส้นแดง (1=ขวา, -1=ซ้าย)
     int score = 0;        // คะแนนสะสม
-
-    int barPos = 500;
-    int dir = 1;
-    int score = 0;
-
     boolean isMoving = false;
 
     String message = "";
@@ -55,9 +52,9 @@ public class GamePanel extends JPanel {
         @Override
         public void actionPerformed(ActionEvent e) {
             if (isMoving) {
-                //int speed = (int)(Math.random() * 15) + 1;
-                int speed = 50;
-                barPos += dir * speed;
+                barPos += dir * fishSpeed;
+                //int speed = 15;
+                barPos += dir * fishSpeed;
                 if (barPos >= 1000) {
                     barPos = 1000;
                     dir = -1;
@@ -77,8 +74,7 @@ public class GamePanel extends JPanel {
         getActionMap().put("fish", new AbstractAction() {
             public void actionPerformed(ActionEvent e) {
                 if (isMoving && !gameOver) {
-                    int speed = (int) (Math.random() * 15) + 1;
-                    barPos += dir * speed;
+                    barPos += dir * fishSpeed;
                     if (barPos >= 1000) {
                         barPos = 1000;
                         dir = -1;
@@ -235,19 +231,24 @@ public class GamePanel extends JPanel {
             return;
         }
         isMoving = false;
-        // อยู่ในแถบสีเขียว ได้คะแนนพิเศษ
-        if (barPos >= greenStart &&
-            barPos <= greenStart + greenWidth) {
-            int point = (int) (Math.random() * 20) + 1;
-            score += point + 5;
-            message = "Excellent! +" + (point + 5);
+        caughtFish = null;
+       
+
+        if (barPos >= greenStart && barPos <= greenStart + greenWidth) {
+            caughtFish = fishManager.catchFish();
+            fishSpeed = caughtFish.getSpeed();
+            int point = caughtFish.getPoints() + 5;
+            score += point;
+
+            message = "Excellent! " + caughtFish.getName() + "+" + point;
             messageColor = Color.GREEN;
         } else if (barPos >= yellowStart && barPos <= yellowStart + yellowWidth) {
-            // อยู่ในแถบสีเหลือง
-            int point = (int) (Math.random() * 10) + 1;
+            caughtFish = fishManager.catchFish();
+            fishSpeed = caughtFish.getSpeed();
+            int point = caughtFish.getPoints();
             score += point;
-            message = "Fishing Success! +" + point;
-            messageColor = Color.YELLOW;
+            message = "Caught " + caughtFish.getName() + " +" + point;
+        messageColor = Color.YELLOW;
         } else {
             // พลาด
             message = "Miss! +0";
@@ -272,9 +273,9 @@ public class GamePanel extends JPanel {
     }
     // สุ่มตำแหน่งและขนาดแถบสีใหม่
     public void randomBar() {
-        yellowStart = (int) (Math.random() * 700);
         yellowWidth = (int) (Math.random() * 300) + 100;
+        yellowStart = (int) (Math.random() * (1001 - yellowWidth));
         greenWidth = Math.max(1, (int) (yellowWidth * 0.10));
-        greenStart = yellowStart+ (int) (Math.random() * (yellowWidth - greenWidth + 1));
+        greenStart = yellowStart + (int) (Math.random() * (yellowWidth - greenWidth + 1));
     }
 }
