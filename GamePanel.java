@@ -24,6 +24,11 @@ public class GamePanel extends JPanel {
 
     // ตำแหน่ง Fishing Bar
     int barX = 70, barY = 985, barW = 1130, barH = 55;
+    // ตำแหน่งแถบ Fishing Bar (พิกัดตามภาพต้นฉบับ)
+    int barX = 70, barY = 986, barW = 1130, barH = 55;
+    int barPos = 500;   // ตำแหน่งเส้นแดง 0..1000 (ลองเริ่มกลางแถบก่อน)
+    int dir = 1;        // ทิศทางการเลื่อนของเส้นแดง (1=ขวา, -1=ซ้าย)
+    int score = 0;        // คะแนนสะสม
 
     int barPos = 500;
     int dir = 1;
