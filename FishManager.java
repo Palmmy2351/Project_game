@@ -42,8 +42,7 @@ public class FishManager{
                 "fish/Swordfish3.png",
                 "fish/Swordfish4.png",
                 "fish/Swordfish5.png",
-                "fish/Swordfish6.png",
-                "fish/Swordfish7.png"
+                "fish/Swordfish6.png"
             }),
             new Fish("Bluefin Tuna", 70, 4, 40,new String[]{
                 "fish/BluefinTuna1.png",
@@ -61,22 +60,60 @@ public class FishManager{
     
     private Random random = new Random();
 
-    public Fish catchFish() {
-        int totalWeight = 0;
+    public Fish catchFish(int speed) {
+    int minSpeed = 0;
+    int maxSpeed = 0;
 
-        for (Fish fish : fishes) {
+    if (speed < 10) {
+        minSpeed = 5;
+        maxSpeed = 5;
+    } else if (speed < 15) {
+        minSpeed = 10;
+        maxSpeed = 10;
+    } else if (speed < 20) {
+        minSpeed = 15;
+        maxSpeed = 15;
+    } else if (speed < 25) {
+        minSpeed = 20;
+        maxSpeed = 20;
+    } else if (speed < 30) {
+        minSpeed = 25;
+        maxSpeed = 25;
+    } else if (speed < 40) {
+        minSpeed = 30;
+        maxSpeed = 30;
+    } else if (speed < 50) {
+        minSpeed = 40;
+        maxSpeed = 40;
+    } else {
+        minSpeed = 50;
+        maxSpeed = 50;
+    }
+
+    int totalWeight = 0;
+
+    for (Fish fish : fishes) {
+        if (fish.getSpeed() >= minSpeed && fish.getSpeed() <= maxSpeed) {
             totalWeight += fish.getWeight();
         }
-        int value = random.nextInt(totalWeight);
+    }
 
-        for (Fish fish : fishes) {
+    if (totalWeight == 0) {
+        return null;
+    }
+
+    int value = random.nextInt(totalWeight);
+
+    for (Fish fish : fishes) {
+        if (fish.getSpeed() >= minSpeed && fish.getSpeed() <= maxSpeed) {
             value -= fish.getWeight();
 
-            if (value < 0){
+            if (value < 0) {
                 return fish;
             }
         }
-
-        return fishes[0] ;
     }
+
+    return null;
+}
 }
