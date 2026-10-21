@@ -17,6 +17,7 @@ public class GamePanel extends JPanel {
 
     private FishManager fishManager = new FishManager();
     private Fish caughtFish;
+    private Image caughtFishImage;
     private int fishSpeed = 5;
     // ขนาดภาพต้นฉบับ
     static final int IMG_W = 1847, IMG_H = 1304;
@@ -54,7 +55,6 @@ public class GamePanel extends JPanel {
             if (isMoving) {
                 barPos += dir * fishSpeed;
                 //int speed = 15;
-                barPos += dir * fishSpeed;
                 if (barPos >= 1000) {
                     barPos = 1000;
                     dir = -1;
@@ -68,37 +68,22 @@ public class GamePanel extends JPanel {
         }
     });
     timer.start();
-
-        // กด Space -> ตรวจคะแนน
-        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("SPACE"), "fish");
-        getActionMap().put("fish", new AbstractAction() {
-            public void actionPerformed(ActionEvent e) {
-                if (isMoving && !gameOver) {
-                    barPos += dir * fishSpeed;
-                    if (barPos >= 1000) {
-                        barPos = 1000;
-                        dir = -1;
-                    }
-                    if (barPos <= 0) {
-                        barPos = 0;
-                        dir = 1;
-                    }
-                    repaint();
-                }
-            }
-        });
+        
         // กด Space เพื่อเริ่มเกมหรือตกปลา
-        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("SPACE"), "fish");
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(KeyStroke.getKeyStroke("SPACE"), "fish");
+
         getActionMap().put("fish", new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if (!gameStarted) {
                     startGame();
-                } else {
+                } else if (!gameOver) {
                     checkScore();
                 }
             }
         });
+
     }
 
     // เริ่มเกม 60 วินาที
@@ -224,6 +209,18 @@ public class GamePanel extends JPanel {
             g.setColor(Color.WHITE);
             g.drawString("Press SPACE to Start",getWidth() / 2 - 100,getHeight() / 2);
         }
+        if (caughtFish != null){
+            g.setColor(Color.WHITE);
+            g.setFont(new Font("Arial", Font.BOLD, 24));
+            g.drawString("Caught Fish", sx(1310), sy(650));
+            if (caughtFishImage != null) {
+                g.drawImage(caughtFishImage,sx(1320),sy(690),sx(300),sy(180),this);
+                
+            }
+            g.setFont(new Font("Arial", Font.BOLD, 20));
+            g.drawString(caughtFish.getName(),sx(1310),sy(900));
+            g.drawString("Points: " + caughtFish.getPoints(),sx(1310),sy(940));
+        }
     }
     // ตรวจสอบคะแนนเมื่อตกปลา
     public void checkScore() {
@@ -232,11 +229,14 @@ public class GamePanel extends JPanel {
         }
         isMoving = false;
         caughtFish = null;
+        caughtFishImage = null;
        
 
         if (barPos >= greenStart && barPos <= greenStart + greenWidth) {
             caughtFish = fishManager.catchFish();
+            caughtFishImage = caughtFish.getRandomImage();
             fishSpeed = caughtFish.getSpeed();
+
             int point = caughtFish.getPoints() + 5;
             score += point;
 
@@ -244,9 +244,12 @@ public class GamePanel extends JPanel {
             messageColor = Color.GREEN;
         } else if (barPos >= yellowStart && barPos <= yellowStart + yellowWidth) {
             caughtFish = fishManager.catchFish();
+            caughtFishImage = caughtFish.getRandomImage();
             fishSpeed = caughtFish.getSpeed();
+
             int point = caughtFish.getPoints();
             score += point;
+
             message = "Caught " + caughtFish.getName() + " +" + point;
         messageColor = Color.YELLOW;
         } else {

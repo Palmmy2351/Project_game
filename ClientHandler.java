@@ -1,6 +1,0 @@
-/**
- * ClientHandler
- */
-public class ClientHandler {
-
-}
