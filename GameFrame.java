@@ -1,19 +1,22 @@
-import javax.swing.JFrame;
+import javax.swing.*;
 
 public class GameFrame extends JFrame {
+
+    private GamePanel GamePanel;
+
     public GameFrame() {
         setTitle("Fishing Game");
-        setSize(800, 565);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        GamePanel gamePanel = new GamePanel();
-        add(gamePanel);
+        GamePanel = new GamePanel();
+        add(GamePanel);
+
         pack();
         setLocationRelativeTo(null);
         setVisible(true);
     }
+
     public static void main(String[] args) {
-        new GameFrame();
-        
+        SwingUtilities.invokeLater(() -> new GameFrame());
     }
 }
