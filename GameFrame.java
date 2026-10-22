@@ -2,14 +2,14 @@ import javax.swing.*;
 
 public class GameFrame extends JFrame {
 
-    private GamePanel GamePanel;
+    private GamePanel gamePanel;
 
     public GameFrame() {
         setTitle("Fishing Game");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        GamePanel = new GamePanel();
-        add(GamePanel);
+        gamePanel = new GamePanel();
+        add(gamePanel);
 
         pack();
         setLocationRelativeTo(null);
