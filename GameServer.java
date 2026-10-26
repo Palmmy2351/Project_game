@@ -1,43 +1,28 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
-import java.util.function.Consumer;
 
 public class GameServer {
     static final int PORT = 50101; // default port
 
-    // NEW: how many character images exist (characters/char1.png ... charN.png)
+    // how many character images exist (characters/char1.png ... charN.png)
     static final int CHARACTER_COUNT = 6;
 
     private final List<ClientHandler> clients = new ArrayList<>();
     private final Map<String, Integer> scores = new LinkedHashMap<>();
-    // NEW: player name -> character id, in join order
+    // player name -> character id, in join order
     private final Map<String, Integer> characters = new LinkedHashMap<>();
     private final Random random = new Random();
+    // The server decides which fish is caught and how many points it is worth
+    private final FishManager fishManager = new FishManager();
     private boolean running = false; // true while a round is in progress
     private int timeLeft = 0;
     private int roundId = 0;         // lets an old countdown thread know it is outdated
 
     private ServerSocket serverSocket;
 
-    // Callbacks so a window can show the log and the player list
-    private Consumer<String> logger = System.out::println;
-    private Consumer<List<String>> playerListener = names -> {};
-
-    public void setLogger(Consumer<String> logger) {
-        this.logger = logger;
-    }
-
-    public void setPlayerListener(Consumer<List<String>> playerListener) {
-        this.playerListener = playerListener;
-    }
-
     private void log(String msg) {
-        logger.accept(msg);
-    }
-
-    private void notifyPlayers() {
-        playerListener.accept(new ArrayList<>(scores.keySet()));
+        System.out.println(msg);
     }
 
     // Console mode still works: java GameServer
@@ -117,14 +102,13 @@ public class GameServer {
         }
         clients.clear();
         scores.clear();
-        characters.clear();   // NEW
-        notifyPlayers();
+        characters.clear();
         log("Server stopped");
     }
 
     // ---------- all methods below are synchronized because many threads call them ----------
 
-    synchronized void broadcast(String msg) {
+    private synchronized void broadcast(String msg) {
         for (ClientHandler c : clients) {
             c.send(msg);
         }
@@ -141,7 +125,7 @@ public class GameServer {
         return sb.toString();
     }
 
-    // NEW: pick a random character nobody is using yet (random repeat if all are taken)
+    // pick a random character nobody is using yet (random repeat if all are taken)
     private int pickCharacter() {
         List<Integer> free = new ArrayList<>();
         for (int i = 0; i < CHARACTER_COUNT; i++) {
@@ -155,7 +139,7 @@ public class GameServer {
         return free.get(random.nextInt(free.size()));
     }
 
-    // NEW: "name:characterId,name:characterId" in join order
+    // "name:characterId,name:characterId" in join order
     private String playersString() {
         StringBuilder sb = new StringBuilder();
         for (Map.Entry<String, Integer> e : characters.entrySet()) {
@@ -167,7 +151,7 @@ public class GameServer {
 
     synchronized void join(ClientHandler h, String rawName) {
         if (h.name != null) {
-            return; // CHANGED: ignore a second JOIN from the same client
+            return; // ignore a second JOIN from the same client
         }
         // Remove characters that would break the protocol
         String base = rawName.replaceAll("[|:,]", "").trim();
@@ -180,11 +164,10 @@ public class GameServer {
         h.name = name;
         clients.add(h);
         scores.put(name, 0);
-        characters.put(name, pickCharacter());   // NEW
+        characters.put(name, pickCharacter());
         log(name + " joined (" + clients.size() + " players)");
-        broadcast("PLAYERS|" + playersString()); // NEW
+        broadcast("PLAYERS|" + playersString());
         broadcast("SCORES|" + scoreString());
-        notifyPlayers();
     }
 
     synchronized void leave(ClientHandler h) {
@@ -193,19 +176,79 @@ public class GameServer {
         }
         if (h.name != null) {
             scores.remove(h.name);
-            characters.remove(h.name);               // NEW
+            characters.remove(h.name);
             log(h.name + " left");
-            broadcast("PLAYERS|" + playersString()); // NEW
+            broadcast("PLAYERS|" + playersString());
             broadcast("SCORES|" + scoreString());
-            notifyPlayers();
-        }
+            }
     }
 
-    synchronized void onCatch(String player, String fish, int points) {
-        if (!running || player == null) return;
-        scores.merge(player, points, Integer::sum);
-        log(player + " caught " + fish + " +" + points);
-        broadcast("CATCH|" + player + "|" + fish + "|" + points);
+    // A player starts fishing: the server picks the bar speed and the zones.
+    // The client cannot choose them, so it cannot ask for a fast (high value) fish.
+    synchronized void onCast(ClientHandler h) {
+        if (!running || h.name == null) return;
+        if (h.castPending) return; // finish the current cast first (no re-rolling the speed)
+
+        h.castSpeed = random.nextInt(46) + 5;
+        h.yellowWidth = random.nextInt(300) + 100;
+        h.yellowStart = random.nextInt(1001 - h.yellowWidth);
+        h.greenWidth = Math.max(1, h.yellowWidth / 10);
+        h.greenStart = h.yellowStart + random.nextInt(h.yellowWidth - h.greenWidth + 1);
+        h.castTimeNanos = System.nanoTime();
+        h.castPending = true;
+
+        h.send("CAST|" + h.castSpeed + "|" + h.yellowStart + "|" + h.yellowWidth
+                + "|" + h.greenStart + "|" + h.greenWidth);
+    }
+
+    // A player stops the bar. The client only says how many 10 ms steps the red line moved;
+    // the server replays the movement itself and decides miss / normal / excellent.
+    synchronized void onReel(ClientHandler h, long ticks) {
+        if (!running || h.name == null || !h.castPending) return;
+        h.castPending = false;
+
+        // The client timer moves the line at most once per 10 ms, and only after it received CAST,
+        // so it can never have more ticks than real time allows.
+        long elapsedMs = (System.nanoTime() - h.castTimeNanos) / 1_000_000;
+        if (ticks < 0 || ticks > elapsedMs / 10 + 10) {
+            log(h.name + " sent an impossible reel (" + ticks + " ticks in " + elapsedMs + " ms)");
+            h.send("RESULT|MISS|0|0");
+            return;
+        }
+
+        // Same movement rules as the red line on the client
+        int pos = 0;
+        int dir = 1;
+        for (long t = 0; t < ticks; t++) {
+            pos += dir * h.castSpeed;
+            if (pos >= 1000) {
+                pos = 1000;
+                dir = -1;
+            }
+            if (pos <= 0) {
+                pos = 0;
+                dir = 1;
+            }
+        }
+
+        boolean excellent = pos >= h.greenStart && pos <= h.greenStart + h.greenWidth;
+        boolean hit = pos >= h.yellowStart && pos <= h.yellowStart + h.yellowWidth;
+        if (!excellent && !hit) {
+            h.send("RESULT|MISS|0|0");
+            return;
+        }
+
+        Fish fish = fishManager.catchFish(h.castSpeed);
+        if (fish == null) {
+            h.send("RESULT|NONE|0|0");
+            return;
+        }
+
+        int points = fish.getPoints() + (excellent ? 5 : 0);
+        scores.merge(h.name, points, Integer::sum);
+        log(h.name + " caught " + fish.getName() + " +" + points);
+        h.send("RESULT|" + fish.getName() + "|" + points + "|" + (excellent ? 1 : 0));
+        broadcast("CATCH|" + h.name + "|" + fish.getName() + "|" + points);
         broadcast("SCORES|" + scoreString());
     }
 
@@ -216,6 +259,9 @@ public class GameServer {
         final int round = ++roundId;
         for (String k : scores.keySet()) {
             scores.put(k, 0); // reset scores (not a structural change, safe while iterating)
+        }
+        for (ClientHandler c : clients) {
+            c.castPending = false; // forget casts left over from the previous round
         }
         log("Round started");
         broadcast("START");
@@ -253,6 +299,11 @@ public class GameServer {
         private final PrintWriter out;
         String name;
 
+        // the cast in progress (set by the server, never by the client)
+        boolean castPending = false;
+        int castSpeed, yellowStart, yellowWidth, greenStart, greenWidth;
+        long castTimeNanos;
+
         ClientHandler(Socket socket) throws IOException {
             this.socket = socket;
             this.out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()), true);
@@ -282,9 +333,12 @@ public class GameServer {
                         case "START":
                             startRound();
                             break;
-                        case "CATCH":
-                            if (p.length >= 3) {
-                                onCatch(name, p[1], Integer.parseInt(p[2]));
+                        case "CAST":
+                            onCast(this);
+                            break;
+                        case "REEL":
+                            if (p.length >= 2) {
+                                onReel(this, Long.parseLong(p[1]));
                             }
                             break;
                     }
