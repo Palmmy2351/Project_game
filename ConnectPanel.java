@@ -15,14 +15,14 @@ public class ConnectPanel extends JPanel {
     private final GameClient client;
     private final GameServer server = new GameServer(); // only started when the player hosts
 
-    // CHANGED: receives a text for the lobby (where to join / what we are connected to)
+    // Receives the text for the lobby (where to join / what we are connected to)
     private final Consumer<String> onConnected;
 
     public ConnectPanel(GameClient client, Consumer<String> onConnected) {
         this.client = client;
         this.onConnected = onConnected;
 
-        setPreferredSize(new Dimension(800, 565)); // same size as GamePanel
+        setPreferredSize(new Dimension(1000, 563)); // same size as GamePanel
         setLayout(new GridBagLayout());            // centers the form
 
         JLabel title = new JLabel("Fishing Game", SwingConstants.CENTER);
@@ -47,9 +47,9 @@ public class ConnectPanel extends JPanel {
         joinButton.addActionListener(e -> connect(ipField.getText().trim(), false));
         hostButton.addActionListener(e -> connect("localhost", true));
         // Pressing Enter in a text field joins
-        nameField.addActionListener(e -> connect(ipField.getText().trim(), false));
-        ipField.addActionListener(e -> connect(ipField.getText().trim(), false));
-        portField.addActionListener(e -> connect(ipField.getText().trim(), false));
+        for (JTextField field : new JTextField[]{nameField, ipField, portField}) {
+            field.addActionListener(e -> connect(ipField.getText().trim(), false));
+        }
     }
 
     // Returns -1 if the port text is not a valid port number

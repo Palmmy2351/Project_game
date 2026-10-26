@@ -29,7 +29,7 @@ public class GamePanel extends JPanel {
     private Map<String, Integer> scoreboard = new LinkedHashMap<>();
     private String lastEvent = "";
 
-    // NEW: one character per player (name -> character id), images are characters/char1.gif ... charN.gif
+    // one character per player (name -> character id), images are characters/char1.gif ... charN.gif
     private final Sprite[] characterImages = loadCharacters();
     private volatile Map<String, Integer> characters = new LinkedHashMap<>();
 
@@ -38,14 +38,14 @@ public class GamePanel extends JPanel {
     private String hostInfo = "";
 
     // Original image size
-    static final int IMG_W = 1847, IMG_H = 1304;
+    static final int IMG_W = 1672, IMG_H = 941;
 
     // Convert original-image coordinates to screen coordinates
     int sx(int v) { return v * getWidth() / IMG_W; }
     int sy(int v) { return v * getHeight() / IMG_H; }
 
     // Fishing bar position
-    int barX = 70, barY = 986, barW = 1130, barH = 55;
+    int barX = 59, barY = 781, barW = 1105, barH = 38;
 
     // Red line position
     int barPos = 500;
@@ -66,7 +66,7 @@ public class GamePanel extends JPanel {
 
     public GamePanel(GameClient client) {
         this.client = client;
-        setPreferredSize(new Dimension(800, 565));
+        setPreferredSize(new Dimension(1000, 563)); // same 16:9 ratio as background.png
 
         // The lobby button is positioned by hand (see doLayout)
         setLayout(null);
@@ -94,7 +94,7 @@ public class GamePanel extends JPanel {
                 repaint();
             }
 
-            // NEW: the server tells us who is in the room and which character each one has
+            // the server tells us who is in the room and which character each one has
             @Override
             public void onPlayers(Map<String, Integer> players) {
                 characters = players;
@@ -162,12 +162,8 @@ public class GamePanel extends JPanel {
                     }
 
                     showNextMessage = false;
-                    barSpeed = (int) (Math.random() * 46) + 5;
-                    randomBar();
-                    barPos = 0;
-                    dir = 1;
                     message = "";
-                    isMoving = true;
+                    startBar();
                     repaint();
                 } else {
                     checkScore();
@@ -176,7 +172,7 @@ public class GamePanel extends JPanel {
         });
     }
 
-    // NEW: an animated GIF plus the part of it that is not empty (the empty border is skipped when drawing)
+    // an animated GIF plus the part of it that is not empty (the empty border is skipped when drawing)
     private static class Sprite {
         final Image img;       // loaded with ImageIcon, so the GIF animation keeps playing
         final Rectangle crop;  // visible area inside the image
@@ -187,7 +183,7 @@ public class GamePanel extends JPanel {
         }
     }
 
-    // NEW: load the character GIFs (characters/char1.gif, char2.gif, ...)
+    // load the character GIFs (characters/char1.gif, char2.gif, ...)
     private static Sprite[] loadCharacters() {
         Sprite[] sprites = new Sprite[GameServer.CHARACTER_COUNT];
         for (int i = 0; i < sprites.length; i++) {
@@ -253,17 +249,29 @@ public class GamePanel extends JPanel {
         startButton.setVisible(!gameStarted || gameOver);
     }
 
-    // Lobby box geometry (centered, half of the panel size)
-    private int lobbyW() { return getWidth() / 2; }
-    private int lobbyH() { return getHeight() / 2; }
-    private int lobbyX() { return (getWidth() - lobbyW()) / 2; }
-    private int lobbyY() { return (getHeight() - lobbyH()) / 2; }
+    // The scene (sea + dock) is x 24..1202 in the background, its centre is x 613
+    private int sceneCenterX() { return sx(613); }
+
+    // Lobby box geometry (centered on the scene, above the characters)
+    private int lobbyW() { return sx(760); }
+    private int lobbyH() { return sy(420); }
+    private int lobbyX() { return sceneCenterX() - lobbyW() / 2; }
+    private int lobbyY() { return sy(75); }
 
     // Put the button at the bottom of the lobby box
     @Override
     public void doLayout() {
         int bw = 150, bh = 36;
-        startButton.setBounds((getWidth() - bw) / 2, lobbyY() + lobbyH() - bh - 12, bw, bh);
+        startButton.setBounds(sceneCenterX() - bw / 2, lobbyY() + lobbyH() - bh - 12, bw, bh);
+    }
+
+    // Random speed and zones, red line back to the start, and let it move
+    private void startBar() {
+        barSpeed = (int) (Math.random() * 46) + 5;
+        randomBar();
+        barPos = 0;
+        dir = 1;
+        isMoving = true;
     }
 
     // Called when the server sends START
@@ -281,14 +289,9 @@ public class GamePanel extends JPanel {
             messageTimer.stop();
         }
 
-        barSpeed = (int) (Math.random() * 46) + 5;
-        randomBar();
-        barPos = 0;
-        dir = 1;
-        isMoving = true;
+        startBar();
 
         updateLobbyButton();
-        timer.start();
         repaint();
     }
 
@@ -342,28 +345,31 @@ public class GamePanel extends JPanel {
             sy(barH) + 6
         );
 
-        // Own score
+        // Own score (top of the lower right panel)
         g.setColor(Color.WHITE);
-        g.setFont(new Font("Arial", Font.PLAIN, 14));
-        g.drawString("Score: " + score, sx(1316), sy(167));
+        g.setFont(new Font("Arial", Font.BOLD, 18));
+        g.drawString("Score: " + score, sx(1250), sy(450));
 
         // The side scoreboard and latest catch are only drawn during a round
         // (in the lobby, the lobby box lists the players and scores)
         if (!inLobby) {
-            g.setColor(Color.WHITE);
             g.setFont(new Font("Arial", Font.BOLD, 16));
-            int rowY = sy(250);
+            int rowY = sy(110);
+            int lastRowY = sy(375);   // bottom of the scoreboard panel
             int rank = 1;
             for (Map.Entry<String, Integer> e : scoreboard.entrySet()) {
-                g.drawString(rank + ". " + e.getKey() + "  " + e.getValue(), sx(1316), rowY);
+                if (rowY > lastRowY) {
+                    g.drawString("+" + (scoreboard.size() - rank + 1) + " more...", sx(1250), lastRowY);
+                    break;
+                }
+                g.drawString(rank + ". " + e.getKey() + "  " + e.getValue(), sx(1250), rowY);
                 rowY += 24;
                 rank++;
             }
 
             if (!lastEvent.isEmpty()) {
                 g.setFont(new Font("Arial", Font.PLAIN, 14));
-                g.setColor(Color.WHITE);
-                g.drawString(lastEvent, sx(1316), sy(560));
+                g.drawString(lastEvent, sx(1250), sy(495));
             }
         }
 
@@ -374,10 +380,11 @@ public class GamePanel extends JPanel {
         String timeText = String.valueOf(timeLeft);
         FontMetrics timeMetrics = g.getFontMetrics();
 
-        int boxX = 870;
-        int boxY = 1085;
-        int boxW = 180;
-        int boxH = 100;
+        // the empty "Time" box in the background
+        int boxX = 1000;
+        int boxY = 836;
+        int boxW = 115;
+        int boxH = 56;
 
         int timeX = sx(boxX) + (sx(boxW) - timeMetrics.stringWidth(timeText)) / 2;
         int timeY = sy(boxY) + (sy(boxH) - timeMetrics.getHeight()) / 2 + timeMetrics.getAscent();
@@ -391,9 +398,9 @@ public class GamePanel extends JPanel {
 
             FontMetrics fm = g.getFontMetrics();
 
-            int textX = (getWidth() - fm.stringWidth(message)) / 2;
+            int textX = sceneCenterX() - fm.stringWidth(message) / 2;
             // in the lobby the message goes above the lobby box
-            int textY = inLobby ? lobbyY() - 16 : getHeight() / 2;
+            int textY = inLobby ? lobbyY() - 12 : sy(330);
 
             g.drawString(message, textX, textY);
         }
@@ -405,8 +412,8 @@ public class GamePanel extends JPanel {
             g.setColor(Color.WHITE);
 
             FontMetrics fm = g.getFontMetrics();
-            int textX = (getWidth() - fm.stringWidth(nextMessage)) / 2;
-            int textY = getHeight() / 2 + 40;
+            int textX = sceneCenterX() - fm.stringWidth(nextMessage) / 2;
+            int textY = sy(330) + 40;
 
             g.drawString(nextMessage, textX, textY);
         }
@@ -415,15 +422,15 @@ public class GamePanel extends JPanel {
         if (caughtFish != null) {
             g.setColor(Color.WHITE);
             g.setFont(new Font("Arial", Font.BOLD, 24));
-            g.drawString("Caught Fish", sx(1310), sy(650));
+            g.drawString("Caught Fish", sx(1250), sy(570));
 
             if (caughtFishImage != null) {
-                g.drawImage(caughtFishImage, sx(1320), sy(690), sx(180), sy(180), this);
+                g.drawImage(caughtFishImage, sx(1340), sy(595), sx(200), sy(200), this);
             }
 
             g.setFont(new Font("Arial", Font.BOLD, 20));
-            g.drawString(caughtFish.getName(), sx(1310), sy(900));
-            g.drawString("Points: " + caughtFish.getPoints(), sx(1310), sy(940));
+            g.drawString(caughtFish.getName(), sx(1250), sy(835));
+            g.drawString("Points: " + caughtFish.getPoints(), sx(1250), sy(875));
         }
 
         // The lobby text goes on top of everything, including the characters
@@ -432,7 +439,7 @@ public class GamePanel extends JPanel {
         }
     }
 
-    // NEW: the sprite for a character id. If that image is missing, use the next one that exists,
+    // the sprite for a character id. If that image is missing, use the next one that exists,
     // so a player is never left without a character (returns null only if no image was loaded at all).
     private Sprite spriteFor(int id) {
         for (int k = 0; k < characterImages.length; k++) {
@@ -444,7 +451,7 @@ public class GamePanel extends JPanel {
         return null;
     }
 
-    // NEW: draw one character (with the player's name) per connected player, standing on the dock.
+    // draw one character (with the player's name) per connected player, standing on the dock.
     // Change areaX / areaW / feetY below to move them somewhere else in the scene.
     private void drawCharacters(Graphics g) {
         Map<String, Integer> players = characters;
@@ -459,12 +466,12 @@ public class GamePanel extends JPanel {
         g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
                 RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
 
-        // The wooden dock in background.png (original-image coordinates): x 35..1245, y 650..840
-        int areaX = sx(50);
-        int areaW = sx(1190);
-        int size = Math.min(sx(200), areaW / n);   // cell size, shrinks when there are many players
+        // The wooden dock in background.png (original-image coordinates): x 24..1202, y 565..693
+        int areaX = sx(40);
+        int areaW = sx(1150);
+        int size = Math.min(sx(150), areaW / n);   // cell size, shrinks when there are many players
         int startX = areaX + (areaW - n * size) / 2;
-        int feetY = sy(770);                       // the line the characters stand on
+        int feetY = sy(655);                       // the line the characters stand on
         int y = feetY - size;
 
         g2.setFont(new Font("Arial", Font.BOLD, 12));
@@ -529,7 +536,7 @@ public class GamePanel extends JPanel {
         if (gameOver) {
             g.setFont(new Font("Arial", Font.PLAIN, 14));
             int rowY = y + 102;
-            int maxRows = Math.max(1, (h - 165) / 22);
+            int maxRows = Math.max(1, (h - 165) / 20);
             int shown = 0;
             for (Map.Entry<String, Integer> e : scoreboard.entrySet()) {
                 if (shown == maxRows) {
@@ -537,7 +544,7 @@ public class GamePanel extends JPanel {
                     break;
                 }
                 g.drawString((shown + 1) + ". " + e.getKey() + "  " + e.getValue(), x + 20, rowY);
-                rowY += 22;
+                rowY += 20;
                 shown++;
             }
         }
@@ -589,14 +596,10 @@ public class GamePanel extends JPanel {
 
         // Tell the server so everyone's scoreboard updates
         client.sendCatch(caughtFish.getName(), point);
-
-        System.out.println("Fish: " + caughtFish.getName());
-        System.out.println("Bar Speed: " + barSpeed);
-        System.out.println("Fish Speed: " + caughtFish.getSpeed());
     }
 
     // Check the result when the player presses SPACE while the bar is moving
-    public void checkScore() {
+    private void checkScore() {
         if (!gameStarted || gameOver || !isMoving) {
             return;
         }
@@ -636,7 +639,7 @@ public class GamePanel extends JPanel {
     }
 
     // Randomize the position and size of the colored zones
-    public void randomBar() {
+    private void randomBar() {
         yellowWidth = (int) (Math.random() * 300) + 100;
         yellowStart = (int) (Math.random() * (1001 - yellowWidth));
         greenWidth = Math.max(1, (int) (yellowWidth * 0.10));
