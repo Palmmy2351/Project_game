@@ -2,6 +2,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.io.*;
 import java.awt.event.*;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
 import java.util.Map;
 import java.util.LinkedHashMap;
 
@@ -27,7 +29,11 @@ public class GamePanel extends JPanel {
     private Map<String, Integer> scoreboard = new LinkedHashMap<>();
     private String lastEvent = "";
 
-    // NEW: lobby UI
+    // NEW: one character per player (name -> character id), images are characters/char1.gif ... charN.gif
+    private final Sprite[] characterImages = loadCharacters();
+    private volatile Map<String, Integer> characters = new LinkedHashMap<>();
+
+    // Lobby UI
     private final JButton startButton = new JButton("Start Game");
     private String hostInfo = "";
 
@@ -62,7 +68,7 @@ public class GamePanel extends JPanel {
         this.client = client;
         setPreferredSize(new Dimension(800, 565));
 
-        // NEW: the lobby button is positioned by hand (see doLayout)
+        // The lobby button is positioned by hand (see doLayout)
         setLayout(null);
         startButton.setFocusable(false); // so SPACE is always handled by the key binding below
         startButton.addActionListener(e -> client.sendStart());
@@ -88,6 +94,13 @@ public class GamePanel extends JPanel {
                 repaint();
             }
 
+            // NEW: the server tells us who is in the room and which character each one has
+            @Override
+            public void onPlayers(Map<String, Integer> players) {
+                characters = players;
+                repaint();
+            }
+
             @Override
             public void onCatch(String player, String fish, int points) {
                 lastEvent = player + " caught " + fish + " +" + points;
@@ -99,7 +112,7 @@ public class GamePanel extends JPanel {
                 scoreboard = finalScores;
                 gameOver = true;
                 isMoving = false;
-                message = "Game Over!";   // CHANGED: the lobby box shows the scores and the hint
+                message = "Game Over!";   // the lobby box shows the scores and the hint
                 messageColor = Color.YELLOW;
                 updateLobbyButton();
                 repaint();
@@ -163,24 +176,90 @@ public class GamePanel extends JPanel {
         });
     }
 
-    // NEW: called by Main with the text shown at the top of the lobby
+    // NEW: an animated GIF plus the part of it that is not empty (the empty border is skipped when drawing)
+    private static class Sprite {
+        final Image img;       // loaded with ImageIcon, so the GIF animation keeps playing
+        final Rectangle crop;  // visible area inside the image
+
+        Sprite(Image img, Rectangle crop) {
+            this.img = img;
+            this.crop = crop;
+        }
+    }
+
+    // NEW: load the character GIFs (characters/char1.gif, char2.gif, ...)
+    private static Sprite[] loadCharacters() {
+        Sprite[] sprites = new Sprite[GameServer.CHARACTER_COUNT];
+        for (int i = 0; i < sprites.length; i++) {
+            File f = new File(System.getProperty("user.dir"),
+                    "characters" + File.separator + "char" + (i + 1) + ".gif");
+            if (!f.exists()) {
+                // also accept the file directly in the project folder (next to background.png)
+                f = new File(System.getProperty("user.dir"), "char" + (i + 1) + ".gif");
+            }
+            if (!f.exists()) {
+                System.out.println("Missing character image: char" + (i + 1) + ".gif (looked in "
+                        + System.getProperty("user.dir") + " and its characters folder)");
+                continue;
+            }
+            Image img = new ImageIcon(f.getAbsolutePath()).getImage();  // ImageIcon waits until the GIF is loaded
+            if (img.getWidth(null) <= 0) {
+                System.out.println("Cannot read character image: " + f);
+                continue;
+            }
+            sprites[i] = new Sprite(img, findCrop(f, img.getWidth(null), img.getHeight(null)));
+        }
+        return sprites;
+    }
+
+    // Finds the area that is not empty (transparent or pure white), using the first frame of the GIF
+    private static Rectangle findCrop(File f, int fullW, int fullH) {
+        try {
+            BufferedImage src = ImageIO.read(f);
+            if (src != null) {
+                int w = src.getWidth(), h = src.getHeight();
+                int minX = w, minY = h, maxX = -1, maxY = -1;
+                for (int y = 0; y < h; y++) {
+                    for (int x = 0; x < w; x++) {
+                        int argb = src.getRGB(x, y);
+                        int a = argb >>> 24;
+                        int r = (argb >> 16) & 255, gr = (argb >> 8) & 255, b = argb & 255;
+                        boolean empty = a < 16 || (r > 240 && gr > 240 && b > 240);
+                        if (!empty) {
+                            if (x < minX) minX = x;
+                            if (x > maxX) maxX = x;
+                            if (y < minY) minY = y;
+                            if (y > maxY) maxY = y;
+                        }
+                    }
+                }
+                if (maxX >= 0) {
+                    return new Rectangle(minX, minY, maxX - minX + 1, maxY - minY + 1);
+                }
+            }
+        } catch (IOException | IllegalArgumentException ignored) {
+        }
+        return new Rectangle(0, 0, fullW, fullH);  // could not measure: use the whole image
+    }
+
+    // Called by GameFrame with the text shown at the top of the lobby
     public void setHostInfo(String info) {
         hostInfo = info;
         repaint();
     }
 
-    // NEW: the Start Game button is only visible in the lobby (before a round and after Game Over)
+    // The Start Game button is only visible in the lobby (before a round and after Game Over)
     private void updateLobbyButton() {
         startButton.setVisible(!gameStarted || gameOver);
     }
 
-    // NEW: lobby box geometry (centered, half of the panel size)
+    // Lobby box geometry (centered, half of the panel size)
     private int lobbyW() { return getWidth() / 2; }
     private int lobbyH() { return getHeight() / 2; }
     private int lobbyX() { return (getWidth() - lobbyW()) / 2; }
     private int lobbyY() { return (getHeight() - lobbyH()) / 2; }
 
-    // NEW: put the button at the bottom of the lobby box
+    // Put the button at the bottom of the lobby box
     @Override
     public void doLayout() {
         int bw = 150, bh = 36;
@@ -224,6 +303,18 @@ public class GamePanel extends JPanel {
             g.drawImage(bg, 0, 0, getWidth(), getHeight(), this);
         }
 
+        // Layers, bottom to top: background, lobby box, characters, then all the text.
+        // After Game Over the box goes above the characters so the final ranking stays easy to read.
+        if (inLobby && gameOver) {
+            drawCharacters(g);
+            drawLobbyBox(g);
+        } else if (inLobby) {
+            drawLobbyBox(g);
+            drawCharacters(g);
+        } else {
+            drawCharacters(g);
+        }
+
         // Yellow zone
         g.setColor(Color.YELLOW);
         g.fillRect(
@@ -256,7 +347,7 @@ public class GamePanel extends JPanel {
         g.setFont(new Font("Arial", Font.PLAIN, 14));
         g.drawString("Score: " + score, sx(1316), sy(167));
 
-        // CHANGED: the side scoreboard and latest catch are only drawn during a round
+        // The side scoreboard and latest catch are only drawn during a round
         // (in the lobby, the lobby box lists the players and scores)
         if (!inLobby) {
             g.setColor(Color.WHITE);
@@ -301,7 +392,7 @@ public class GamePanel extends JPanel {
             FontMetrics fm = g.getFontMetrics();
 
             int textX = (getWidth() - fm.stringWidth(message)) / 2;
-            // CHANGED: in the lobby the message goes above the lobby box
+            // in the lobby the message goes above the lobby box
             int textY = inLobby ? lobbyY() - 16 : getHeight() / 2;
 
             g.drawString(message, textX, textY);
@@ -335,23 +426,91 @@ public class GamePanel extends JPanel {
             g.drawString("Points: " + caughtFish.getPoints(), sx(1310), sy(940));
         }
 
-        // NEW: the lobby is drawn last so it sits on top
+        // The lobby text goes on top of everything, including the characters
         if (inLobby) {
-            drawLobby(g);
+            drawLobbyText(g);
         }
     }
 
-    // NEW: lobby box with host info, player list and the hint (the button is a real JButton)
-    private void drawLobby(Graphics g) {
+    // NEW: the sprite for a character id. If that image is missing, use the next one that exists,
+    // so a player is never left without a character (returns null only if no image was loaded at all).
+    private Sprite spriteFor(int id) {
+        for (int k = 0; k < characterImages.length; k++) {
+            Sprite sp = characterImages[(id + k) % characterImages.length];
+            if (sp != null) {
+                return sp;
+            }
+        }
+        return null;
+    }
+
+    // NEW: draw one character (with the player's name) per connected player, standing on the dock.
+    // Change areaX / areaW / feetY below to move them somewhere else in the scene.
+    private void drawCharacters(Graphics g) {
+        Map<String, Integer> players = characters;
+        int n = players.size();
+        if (n == 0) {
+            return;
+        }
+
+        Graphics2D g2 = (Graphics2D) g;
+        Object oldHint = g2.getRenderingHint(RenderingHints.KEY_INTERPOLATION);
+        // pixel art stays sharp when scaled
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+
+        // The wooden dock in background.png (original-image coordinates): x 35..1245, y 650..840
+        int areaX = sx(50);
+        int areaW = sx(1190);
+        int size = Math.min(sx(200), areaW / n);   // cell size, shrinks when there are many players
+        int startX = areaX + (areaW - n * size) / 2;
+        int feetY = sy(770);                       // the line the characters stand on
+        int y = feetY - size;
+
+        g2.setFont(new Font("Arial", Font.BOLD, 12));
+        FontMetrics fm = g2.getFontMetrics();
+
+        int i = 0;
+        for (Map.Entry<String, Integer> e : players.entrySet()) {
+            int x = startX + i * size;
+            Sprite sp = spriteFor(e.getValue());
+
+            if (sp != null) {
+                Rectangle c = sp.crop;
+                double scale = Math.min((double) size / c.width, (double) size / c.height);
+                int dw = (int) (c.width * scale), dh = (int) (c.height * scale);
+                int dx = x + (size - dw) / 2;   // centered horizontally
+                int dy = y + size - dh;         // feet on the same line
+                // draw only the cropped part; "this" as observer repaints the panel on every GIF frame
+                g2.drawImage(sp.img, dx, dy, dx + dw, dy + dh,
+                        c.x, c.y, c.x + c.width, c.y + c.height, this);
+            }
+
+            g2.setColor(Color.WHITE);
+            g2.drawString(e.getKey(), x + (size - fm.stringWidth(e.getKey())) / 2, y + size + 14);
+            i++;
+        }
+
+        if (oldHint != null) {
+            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, oldHint);
+        }
+    }
+
+    // Lobby box background (dark rounded rectangle, no text)
+    private void drawLobbyBox(Graphics g) {
+        g.setColor(new Color(0, 0, 0, 170));
+        g.fillRoundRect(lobbyX(), lobbyY(), lobbyW(), lobbyH(), 24, 24);
+        g.setColor(Color.WHITE);
+        g.drawRoundRect(lobbyX(), lobbyY(), lobbyW(), lobbyH(), 24, 24);
+    }
+
+    // Lobby text: title, host info, player count / final ranking and the hint (the button is a real JButton)
+    private void drawLobbyText(Graphics g) {
         int x = lobbyX();
         int y = lobbyY();
         int w = lobbyW();
         int h = lobbyH();
-
-        g.setColor(new Color(0, 0, 0, 170));
-        g.fillRoundRect(x, y, w, h, 24, 24);
         g.setColor(Color.WHITE);
-        g.drawRoundRect(x, y, w, h, 24, 24);
 
         // Title
         g.setFont(new Font("Arial", Font.BOLD, 22));
@@ -365,21 +524,22 @@ public class GamePanel extends JPanel {
         g.setFont(new Font("Arial", Font.BOLD, 14));
         g.drawString("Players (" + scoreboard.size() + ")", x + 20, y + 80);
 
-        g.setFont(new Font("Arial", Font.PLAIN, 14));
-        int rowY = y + 102;
-        int maxRows = Math.max(1, (h - 165) / 22);
-        int shown = 0;
-        for (Map.Entry<String, Integer> e : scoreboard.entrySet()) {
-            if (shown == maxRows) {
-                g.drawString("+" + (scoreboard.size() - shown) + " more...", x + 20, rowY);
-                break;
+        // Before a round the names are already shown under the characters,
+        // so the text list is only needed for the final ranking
+        if (gameOver) {
+            g.setFont(new Font("Arial", Font.PLAIN, 14));
+            int rowY = y + 102;
+            int maxRows = Math.max(1, (h - 165) / 22);
+            int shown = 0;
+            for (Map.Entry<String, Integer> e : scoreboard.entrySet()) {
+                if (shown == maxRows) {
+                    g.drawString("+" + (scoreboard.size() - shown) + " more...", x + 20, rowY);
+                    break;
+                }
+                g.drawString((shown + 1) + ". " + e.getKey() + "  " + e.getValue(), x + 20, rowY);
+                rowY += 22;
+                shown++;
             }
-            String line = gameOver
-                    ? (shown + 1) + ". " + e.getKey() + "  " + e.getValue()
-                    : e.getKey();
-            g.drawString(line, x + 20, rowY);
-            rowY += 22;
-            shown++;
         }
 
         // Hint above the button
@@ -387,7 +547,7 @@ public class GamePanel extends JPanel {
         drawCentered(g, "Press SPACE or click Start Game", y + h - 56);
     }
 
-    // NEW: draw text centered in the lobby box (adds "..." if it is too long)
+    // Draw text centered in the lobby box (adds "..." if it is too long)
     private void drawCentered(Graphics g, String s, int baselineY) {
         FontMetrics fm = g.getFontMetrics();
         int maxW = lobbyW() - 24;

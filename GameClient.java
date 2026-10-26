@@ -8,6 +8,8 @@ public class GameClient {
         void onScores(Map<String, Integer> scores);
         void onCatch(String player, String fish, int points);
         void onGameOver(Map<String, Integer> finalScores);
+        // NEW: player name -> character id (sent whenever someone joins or leaves)
+        default void onPlayers(Map<String, Integer> characters) {}
     }
     private PrintWriter out;
     private Listener listener;
@@ -57,17 +59,21 @@ public class GameClient {
             case "SCORES":
                 listener.onScores(parseScores(parts.length > 1 ? parts[1] : ""));
                     break;
+            case "PLAYERS":   // NEW
+                listener.onPlayers(parseScores(parts.length > 1 ? parts[1] : ""));
+                break;
             case "CATCH":
                 listener.onCatch(parts[1], parts[2], Integer.parseInt(parts[3]));
                 break;
             case "GAMEOVER":
-                Map<String, Integer> finalScores = new HashMap<>();
                 listener.onGameOver(parseScores(parts.length > 1 ? parts[1] : ""));
                 break;
         }
     }
+
+    // Parses "name:number,name:number" and keeps the order sent by the server
     private Map<String, Integer> parseScores(String scoreString) {
-        Map<String, Integer> scores = new HashMap<>();
+        Map<String, Integer> scores = new LinkedHashMap<>();   // CHANGED: was HashMap (lost the ranking order)
         if (scoreString.isEmpty()) return scores;
         for (String part : scoreString.split(",")) {
             String[] kv = part.split(":");

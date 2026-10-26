@@ -6,15 +6,21 @@ import java.util.function.Consumer;
 public class GameServer {
     static final int PORT = 50101; // default port
 
+    // NEW: how many character images exist (characters/char1.png ... charN.png)
+    static final int CHARACTER_COUNT = 6;
+
     private final List<ClientHandler> clients = new ArrayList<>();
     private final Map<String, Integer> scores = new LinkedHashMap<>();
+    // NEW: player name -> character id, in join order
+    private final Map<String, Integer> characters = new LinkedHashMap<>();
+    private final Random random = new Random();
     private boolean running = false; // true while a round is in progress
     private int timeLeft = 0;
     private int roundId = 0;         // lets an old countdown thread know it is outdated
 
     private ServerSocket serverSocket;
 
-    // NEW: callbacks so a window can show the log and the player list
+    // Callbacks so a window can show the log and the player list
     private Consumer<String> logger = System.out::println;
     private Consumer<List<String>> playerListener = names -> {};
 
@@ -39,7 +45,7 @@ public class GameServer {
         new GameServer().start(PORT);
     }
 
-    // NEW: IPv4 addresses of this machine, so the host can tell friends what to type
+    // IPv4 addresses of this machine, so the host can tell friends what to type
     public static String localAddresses() {
         StringBuilder sb = new StringBuilder();
         try {
@@ -65,7 +71,7 @@ public class GameServer {
         return sb.length() == 0 ? "localhost" : sb.toString();
     }
 
-    // CHANGED: start() returns right away; accepting runs on its own thread
+    // start() returns right away; accepting runs on its own thread
     public void start(int port) throws IOException {
         if (serverSocket != null && !serverSocket.isClosed()) {
             return; // already running
@@ -94,7 +100,7 @@ public class GameServer {
         acceptThread.start();
     }
 
-    // NEW: stop the server and disconnect everyone
+    // Stop the server and disconnect everyone
     public synchronized void stop() {
         roundId++;       // outdated countdown threads will exit
         running = false;
@@ -111,6 +117,7 @@ public class GameServer {
         }
         clients.clear();
         scores.clear();
+        characters.clear();   // NEW
         notifyPlayers();
         log("Server stopped");
     }
@@ -134,7 +141,34 @@ public class GameServer {
         return sb.toString();
     }
 
+    // NEW: pick a random character nobody is using yet (random repeat if all are taken)
+    private int pickCharacter() {
+        List<Integer> free = new ArrayList<>();
+        for (int i = 0; i < CHARACTER_COUNT; i++) {
+            if (!characters.containsValue(i)) {
+                free.add(i);
+            }
+        }
+        if (free.isEmpty()) {
+            return random.nextInt(CHARACTER_COUNT);
+        }
+        return free.get(random.nextInt(free.size()));
+    }
+
+    // NEW: "name:characterId,name:characterId" in join order
+    private String playersString() {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, Integer> e : characters.entrySet()) {
+            if (sb.length() > 0) sb.append(',');
+            sb.append(e.getKey()).append(':').append(e.getValue());
+        }
+        return sb.toString();
+    }
+
     synchronized void join(ClientHandler h, String rawName) {
+        if (h.name != null) {
+            return; // CHANGED: ignore a second JOIN from the same client
+        }
         // Remove characters that would break the protocol
         String base = rawName.replaceAll("[|:,]", "").trim();
         if (base.isEmpty()) base = "Player";
@@ -146,7 +180,9 @@ public class GameServer {
         h.name = name;
         clients.add(h);
         scores.put(name, 0);
+        characters.put(name, pickCharacter());   // NEW
         log(name + " joined (" + clients.size() + " players)");
+        broadcast("PLAYERS|" + playersString()); // NEW
         broadcast("SCORES|" + scoreString());
         notifyPlayers();
     }
@@ -157,7 +193,9 @@ public class GameServer {
         }
         if (h.name != null) {
             scores.remove(h.name);
+            characters.remove(h.name);               // NEW
             log(h.name + " left");
+            broadcast("PLAYERS|" + playersString()); // NEW
             broadcast("SCORES|" + scoreString());
             notifyPlayers();
         }
