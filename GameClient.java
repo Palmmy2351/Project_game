@@ -1,59 +1,79 @@
 import java.io.*;
 import java.net.*;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.function.Consumer;
+import java.util.*;
 public class GameClient {
-    private Socket socket;
+    public interface Listener {
+        void onStart();
+        void onTime(int secondsLeft);
+        void onScores(Map<String, Integer> scores);
+        void onCatch(String player, String fish, int points);
+        void onGameOver(Map<String, Integer> finalScores);
+    }
     private PrintWriter out;
-    private Consumer<String> boardListener;
-    private Consumer<String> statusListener;
+    private Listener listener;
 
-    public GameClient(Consumer<String> boardListener,Consumer<String> statusListener){
-        this.boardListener = boardListener;
-        this.statusListener = statusListener;
+    public void setListener(Listener listener) {
+        this.listener = listener;
     }
+    
+    public void connect (String host, int port, String username) throws IOException {
+        Socket socket = new Socket(host, port);
+        out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()), true);
+        BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-    public void connect(String ip,String name){
-        Runnable task = new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    socket = new Socket(ip, GameServer.PORT);
-                    socket.connect(new InetSocketAddress(ip, GameServer.PORT), 3000);
-                    out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
-                    BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-                    String encodedName = Base64.getUrlEncoder().withoutPadding().encodeToString(name.getBytes(StandardCharsets.UTF_8));
-                    out.println("JOIN\t" + encodedName);
-                    statusListener.accept("Connected to server.");
-                    String message;
-                    while ((message = in.readLine()) != null) {
-                        if (message.startsWith("BOARD\t")) {
-                            boardListener.accept(message.substring(6));
-                        } else if (message.startsWith("ERROR\t")) {
-                            statusListener.accept(message.substring(6));
-                        }
-                    }
-                } catch (IOException e) {
-                    statusListener.accept("Connection error: " + e.getMessage());
-                }
+        out.println("JOIN|" + username);
+
+        Thread readerThread = new Thread(() -> {
+            try {
+                String line;
+                while ((line = in.readLine()) != null) {
+                    handle(line);
+                }           
+            } catch (IOException e) {
+                System.out.println("Disconnected from server");
             }
-        };
-        new Thread(task).start();
+        });
+        readerThread.setDaemon(true);
+        readerThread.start();
     }
-    public synchronized void sendScore(int score) {
-        if (out != null && score > 0 && score <= 1000) {
-            out.println("SCORE\t" + score);
+
+    public void sendStart() {
+        if (out != null) out.println("START");
+    }
+
+    public void sendCatch(String fish, int points) {
+        if (out != null) out.println("CATCH|" + fish + "|" + points);
+    }
+    
+    private void handle(String line) {
+        String[] parts = line.split("\\|");
+        switch (parts[0]) {
+            case "START":
+                listener.onStart();
+                break;
+            case "TIME":
+                listener.onTime(Integer.parseInt(parts[1]));
+                break;
+            case "SCORES":
+                listener.onScores(parseScores(parts.length > 1 ? parts[1] : ""));
+                    break;
+            case "CATCH":
+                listener.onCatch(parts[1], parts[2], Integer.parseInt(parts[3]));
+                break;
+            case "GAMEOVER":
+                Map<String, Integer> finalScores = new HashMap<>();
+                listener.onGameOver(parseScores(parts.length > 1 ? parts[1] : ""));
+                break;
         }
     }
-    public void close() {
-        try {
-            if (socket != null) {
-                socket.close();
-            }
-        } catch (IOException e) {
-            // Handle the exception if needed
+    private Map<String, Integer> parseScores(String scoreString) {
+        Map<String, Integer> scores = new HashMap<>();
+        if (scoreString.isEmpty()) return scores;
+        for (String part : scoreString.split(",")) {
+            String[] kv = part.split(":");
+            scores.put(kv[0], Integer.parseInt(kv[1]));
         }
+        return scores;
     }
     
 }
