@@ -382,17 +382,17 @@ public class GamePanel extends JPanel {
         // Own score
         g.setColor(Color.WHITE);
         g.setFont(new Font("Arial", Font.PLAIN, 14));
-        g.drawString("Score: " + score, sx(1316), sy(167));
+        g.drawString("Score: " + score, sx(1250), sy(130));
 
         // The side scoreboard and latest catch are only drawn during a round
         // (in the lobby, the lobby box lists the players and scores)
         if (!inLobby) {
             g.setColor(Color.WHITE);
             g.setFont(new Font("Arial", Font.BOLD, 16));
-            int rowY = sy(250);
+            int rowY = sy(170);
             int rank = 1;
             for (Map.Entry<String, Integer> e : scoreboard.entrySet()) {
-                g.drawString(rank + ". " + e.getKey() + "  " + e.getValue(), sx(1316), rowY);
+                g.drawString(rank + ". " + e.getKey() + "  " + e.getValue(), sx(1250), rowY);
                 rowY += 24;
                 rank++;
             }
@@ -400,7 +400,7 @@ public class GamePanel extends JPanel {
             if (!lastEvent.isEmpty()) {
                 g.setFont(new Font("Arial", Font.PLAIN, 14));
                 g.setColor(Color.WHITE);
-                g.drawString(lastEvent, sx(1316), sy(560));
+                g.drawString(lastEvent, sx(1290), sy(530));
             }
         }
 
@@ -452,15 +452,15 @@ public class GamePanel extends JPanel {
         if (caughtFish != null) {
             g.setColor(Color.WHITE);
             g.setFont(new Font("Arial", Font.BOLD, 24));
-            g.drawString("Caught Fish", sx(1310), sy(650));
+            g.drawString("Caught Fish", sx(1320), sy(480));
 
             if (caughtFishImage != null) {
-                g.drawImage(caughtFishImage, sx(1320), sy(690), sx(180), sy(180), this);
+                g.drawImage(caughtFishImage, sx(1340), sy(560), sx(180), sy(180), this);
             }
 
             g.setFont(new Font("Arial", Font.BOLD, 20));
-            g.drawString(caughtFish.getName(), sx(1310), sy(900));
-            g.drawString("Points: " + caughtFish.getPoints(), sx(1310), sy(940));
+            g.drawString(caughtFish.getName(), sx(1355), sy(795));
+            g.drawString("Points: " + caughtFish.getPoints(), sx(1355), sy(840));
         }
 
         // The lobby text goes on top of everything, including the characters
