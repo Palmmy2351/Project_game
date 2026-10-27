@@ -15,11 +15,11 @@ public class GameFrame {
         JPanel root = new JPanel(cards);
 
         GameClient client = new GameClient();
-        GamePanel gamePanel = new GamePanel(client);   // sets the listener before connecting
+        GamePanel gamePanel = new GamePanel(client);  
 
         ConnectPanel connectPanel = new ConnectPanel(client, lobbyInfo -> {
-            gamePanel.setHostInfo(lobbyInfo);          // text shown at the top of the lobby
-            cards.show(root, "game");                  // switch to the game screen
+            gamePanel.setHostInfo(lobbyInfo);       
+            cards.show(root, "game");                
             gamePanel.requestFocusInWindow();
         });
 
