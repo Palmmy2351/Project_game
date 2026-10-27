@@ -41,14 +41,14 @@ public class GamePanel extends JPanel {
     private String hostInfo = "";
 
     // Original image size
-    static final int IMG_W = 1847, IMG_H = 1304;
+    static final int IMG_W = 1672, IMG_H = 941;
 
     // Convert original-image coordinates to screen coordinates
     int sx(int v) { return v * getWidth() / IMG_W; }
     int sy(int v) { return v * getHeight() / IMG_H; }
 
     // Fishing bar position
-    int barX = 70, barY = 986, barW = 1130, barH = 55;
+    int barX = 52, barY = 780, barW = 1102, barH = 40;
 
     // Red line position
     int barPos = 500;
@@ -350,6 +350,7 @@ public class GamePanel extends JPanel {
             drawCharacters(g);
         }
 
+        if (!inLobby) {
         // Yellow zone
         g.setColor(Color.YELLOW);
         g.fillRect(
@@ -375,7 +376,8 @@ public class GamePanel extends JPanel {
             sy(barY) - 3,
             4,
             sy(barH) + 6
-        );
+    );
+}
 
         // Own score
         g.setColor(Color.WHITE);
@@ -409,10 +411,10 @@ public class GamePanel extends JPanel {
         String timeText = String.valueOf(timeLeft);
         FontMetrics timeMetrics = g.getFontMetrics();
 
-        int boxX = 870;
-        int boxY = 1085;
-        int boxW = 180;
-        int boxH = 100;
+        int boxX = 1000;
+        int boxY = 835;
+        int boxW = 117;
+        int boxH = 61;
 
         int timeX = sx(boxX) + (sx(boxW) - timeMetrics.stringWidth(timeText)) / 2;
         int timeY = sy(boxY) + (sy(boxH) - timeMetrics.getHeight()) / 2 + timeMetrics.getAscent();
@@ -499,7 +501,7 @@ public class GamePanel extends JPanel {
         int areaW = sx(1190);
         int size = Math.min(sx(200), areaW / n);   // cell size, shrinks when there are many players
         int startX = areaX + (areaW - n * size) / 2;
-        int feetY = sy(770);                       // the line the characters stand on
+        int feetY = sy(600);                       // the line the characters stand on
         int y = feetY - size;
 
         g2.setFont(new Font("Arial", Font.BOLD, 12));
