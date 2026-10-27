@@ -1,7 +1,7 @@
 import java.util.Random;
 public class FishManager{
         private Fish[] fishes = {
-            new Fish("Clownfish", 5, 30, 5,new String[]{
+            new Fish("Clownfish", 50000, 30, 5,new String[]{
                 "fish/image1.png",
                 "fish/image2.png",
                 "fish/image3.png",
@@ -60,60 +60,53 @@ public class FishManager{
     
     private Random random = new Random();
 
-    public Fish catchFish(int speed) {
-    int minSpeed = 0;
-    int maxSpeed = 0;
-
-    if (speed < 10) {
-        minSpeed = 5;
-        maxSpeed = 5;
-    } else if (speed < 15) {
-        minSpeed = 10;
-        maxSpeed = 10;
-    } else if (speed < 20) {
-        minSpeed = 15;
-        maxSpeed = 15;
-    } else if (speed < 25) {
-        minSpeed = 20;
-        maxSpeed = 20;
-    } else if (speed < 30) {
-        minSpeed = 25;
-        maxSpeed = 25;
-    } else if (speed < 40) {
-        minSpeed = 30;
-        maxSpeed = 30;
-    } else if (speed < 50) {
-        minSpeed = 40;
-        maxSpeed = 40;
-    } else {
-        minSpeed = 50;
-        maxSpeed = 50;
-    }
-
-    int totalWeight = 0;
-
-    for (Fish fish : fishes) {
-        if (fish.getSpeed() >= minSpeed && fish.getSpeed() <= maxSpeed) {
-            totalWeight += fish.getWeight();
-        }
-    }
-
-    if (totalWeight == 0) {
-        return null;
-    }
-
-    int value = random.nextInt(totalWeight);
-
-    for (Fish fish : fishes) {
-        if (fish.getSpeed() >= minSpeed && fish.getSpeed() <= maxSpeed) {
-            value -= fish.getWeight();
-
-            if (value < 0) {
+    // Finds a fish by its name (the client uses this to show the fish the server chose)
+    public Fish findByName(String name) {
+        for (Fish fish : fishes) {
+            if (fish.getName().equals(name)) {
                 return fish;
             }
         }
+        return null;
     }
 
-    return null;
-}
+    // Maps the speed of the red line to the speed of the fish that can be caught
+    private int fishSpeedFor(int barSpeed) {
+        if (barSpeed < 10) return 5;
+        if (barSpeed < 15) return 10;
+        if (barSpeed < 20) return 15;
+        if (barSpeed < 25) return 20;
+        if (barSpeed < 30) return 25;
+        if (barSpeed < 40) return 30;
+        if (barSpeed < 50) return 40;
+        return 50;
+    }
+
+    // Picks a random fish of the matching speed (a higher weight means more likely)
+    public Fish catchFish(int barSpeed) {
+        int target = fishSpeedFor(barSpeed);
+
+        int totalWeight = 0;
+        for (Fish fish : fishes) {
+            if (fish.getSpeed() == target) {
+                totalWeight += fish.getWeight();
+            }
+        }
+
+        if (totalWeight == 0) {
+            return null;
+        }
+
+        int value = random.nextInt(totalWeight);
+        for (Fish fish : fishes) {
+            if (fish.getSpeed() == target) {
+                value -= fish.getWeight();
+                if (value < 0) {
+                    return fish;
+                }
+            }
+        }
+
+        return null;
+    }
 }
