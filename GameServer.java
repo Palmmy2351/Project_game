@@ -3,21 +3,18 @@ import java.net.*;
 import java.util.*;
 
 public class GameServer {
-    static final int PORT = 50101; // default port
+    static final int PORT = 50101; 
 
-    // how many character images exist (characters/char1.png ... charN.png)
     static final int CHARACTER_COUNT = 6;
 
     private final List<ClientHandler> clients = new ArrayList<>();
     private final Map<String, Integer> scores = new LinkedHashMap<>();
-    // player name -> character id, in join order
     private final Map<String, Integer> characters = new LinkedHashMap<>();
     private final Random random = new Random();
-    // The server decides which fish is caught and how many points it is worth
     private final FishManager fishManager = new FishManager();
-    private boolean running = false; // true while a round is in progress
+    private boolean running = false; 
     private int timeLeft = 0;
-    private int roundId = 0;         // lets an old countdown thread know it is outdated
+    private int roundId = 0;       
 
     private ServerSocket serverSocket;
 
@@ -25,12 +22,10 @@ public class GameServer {
         System.out.println(msg);
     }
 
-    // Console mode still works: java GameServer
     public static void main(String[] args) throws IOException {
         new GameServer().start(PORT);
     }
 
-    // IPv4 addresses of this machine, so the host can tell friends what to type
     public static String localAddresses() {
         StringBuilder sb = new StringBuilder();
         try {
@@ -56,13 +51,12 @@ public class GameServer {
         return sb.length() == 0 ? "localhost" : sb.toString();
     }
 
-    // start() returns right away; accepting runs on its own thread
     public void start(int port) throws IOException {
         if (serverSocket != null && !serverSocket.isClosed()) {
-            return; // already running
+            return; 
         }
 
-        serverSocket = new ServerSocket(port); // throws if the port is already in use
+        serverSocket = new ServerSocket(port); 
         final ServerSocket ss = serverSocket;
         log("Server started on port " + port);
 
@@ -72,10 +66,9 @@ public class GameServer {
                 try {
                     socket = ss.accept();
                 } catch (IOException e) {
-                    break; // the socket was closed by stop()
+                    break; 
                 }
                 try {
-                    // One thread per client
                     new Thread(new ClientHandler(socket)).start();
                 } catch (IOException e) {
                     log("Could not accept a client: " + e.getMessage());
@@ -85,9 +78,8 @@ public class GameServer {
         acceptThread.start();
     }
 
-    // Stop the server and disconnect everyone
     public synchronized void stop() {
-        roundId++;       // outdated countdown threads will exit
+        roundId++;       
         running = false;
 
         try {
@@ -106,8 +98,6 @@ public class GameServer {
         log("Server stopped");
     }
 
-    // ---------- all methods below are synchronized because many threads call them ----------
-
     private synchronized void broadcast(String msg) {
         for (ClientHandler c : clients) {
             c.send(msg);
@@ -125,7 +115,6 @@ public class GameServer {
         return sb.toString();
     }
 
-    // pick a random character nobody is using yet (random repeat if all are taken)
     private int pickCharacter() {
         List<Integer> free = new ArrayList<>();
         for (int i = 0; i < CHARACTER_COUNT; i++) {
@@ -139,7 +128,6 @@ public class GameServer {
         return free.get(random.nextInt(free.size()));
     }
 
-    // "name:characterId,name:characterId" in join order
     private String playersString() {
         StringBuilder sb = new StringBuilder();
         for (Map.Entry<String, Integer> e : characters.entrySet()) {
@@ -151,9 +139,8 @@ public class GameServer {
 
     synchronized void join(ClientHandler h, String rawName) {
         if (h.name != null) {
-            return; // ignore a second JOIN from the same client
+            return; 
         }
-        // Remove characters that would break the protocol
         String base = rawName.replaceAll("[|:,]", "").trim();
         if (base.isEmpty()) base = "Player";
         String name = base;
@@ -183,11 +170,9 @@ public class GameServer {
             }
     }
 
-    // A player starts fishing: the server picks the bar speed and the zones.
-    // The client cannot choose them, so it cannot ask for a fast (high value) fish.
     synchronized void onCast(ClientHandler h) {
         if (!running || h.name == null) return;
-        if (h.castPending) return; // finish the current cast first (no re-rolling the speed)
+        if (h.castPending) return;
 
         h.castSpeed = random.nextInt(46) + 5;
         h.yellowWidth = random.nextInt(300) + 100;
@@ -197,18 +182,13 @@ public class GameServer {
         h.castTimeNanos = System.nanoTime();
         h.castPending = true;
 
-        h.send("CAST|" + h.castSpeed + "|" + h.yellowStart + "|" + h.yellowWidth
-                + "|" + h.greenStart + "|" + h.greenWidth);
+        h.send("CAST|" + h.castSpeed + "|" + h.yellowStart + "|" + h.yellowWidth + "|" + h.greenStart + "|" + h.greenWidth);
     }
 
-    // A player stops the bar. The client only says how many 10 ms steps the red line moved;
-    // the server replays the movement itself and decides miss / normal / excellent.
     synchronized void onReel(ClientHandler h, long ticks) {
         if (!running || h.name == null || !h.castPending) return;
         h.castPending = false;
 
-        // The client timer moves the line at most once per 10 ms, and only after it received CAST,
-        // so it can never have more ticks than real time allows.
         long elapsedMs = (System.nanoTime() - h.castTimeNanos) / 1_000_000;
         if (ticks < 0 || ticks > elapsedMs / 10 + 10) {
             log(h.name + " sent an impossible reel (" + ticks + " ticks in " + elapsedMs + " ms)");
@@ -216,7 +196,6 @@ public class GameServer {
             return;
         }
 
-        // Same movement rules as the red line on the client
         int pos = 0;
         int dir = 1;
         for (long t = 0; t < ticks; t++) {
@@ -258,17 +237,16 @@ public class GameServer {
         timeLeft = 60;
         final int round = ++roundId;
         for (String k : scores.keySet()) {
-            scores.put(k, 0); // reset scores (not a structural change, safe while iterating)
+            scores.put(k, 0); 
         }
         for (ClientHandler c : clients) {
-            c.castPending = false; // forget casts left over from the previous round
+            c.castPending = false;
         }
         log("Round started");
         broadcast("START");
         broadcast("TIME|" + timeLeft);
         broadcast("SCORES|" + scoreString());
 
-        // Countdown thread: the server owns the clock
         new Thread(() -> {
             while (true) {
                 try {
@@ -278,7 +256,7 @@ public class GameServer {
                 }
                 synchronized (GameServer.this) {
                     if (!running || round != roundId) {
-                        return; // the server was stopped
+                        return; 
                     }
                     timeLeft--;
                     broadcast("TIME|" + timeLeft);
@@ -293,13 +271,10 @@ public class GameServer {
         }).start();
     }
 
-    // ---------- one handler per connected client ----------
     class ClientHandler implements Runnable {
         private final Socket socket;
         private final PrintWriter out;
         String name;
-
-        // the cast in progress (set by the server, never by the client)
         boolean castPending = false;
         int castSpeed, yellowStart, yellowWidth, greenStart, greenWidth;
         long castTimeNanos;
@@ -344,7 +319,6 @@ public class GameServer {
                     }
                 }
             } catch (IOException | RuntimeException e) {
-                // client disconnected or sent a bad message
             } finally {
                 leave(this);
                 close();

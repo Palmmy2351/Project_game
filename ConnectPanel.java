@@ -13,17 +13,16 @@ public class ConnectPanel extends JPanel {
     private final JLabel statusLabel = new JLabel(" ", SwingConstants.CENTER);
 
     private final GameClient client;
-    private final GameServer server = new GameServer(); // only started when the player hosts
+    private final GameServer server = new GameServer(); 
 
-    // Receives the text for the lobby (where to join / what we are connected to)
     private final Consumer<String> onConnected;
 
     public ConnectPanel(GameClient client, Consumer<String> onConnected) {
         this.client = client;
         this.onConnected = onConnected;
 
-        setPreferredSize(new Dimension(1000, 563)); // same size as GamePanel
-        setLayout(new GridBagLayout());            // centers the form
+        setPreferredSize(new Dimension(1000, 563)); 
+        setLayout(new GridBagLayout());            
 
         JLabel title = new JLabel("Fishing Game", SwingConstants.CENTER);
         title.setFont(new Font("Arial", Font.BOLD, 32));
@@ -46,13 +45,11 @@ public class ConnectPanel extends JPanel {
 
         joinButton.addActionListener(e -> connect(ipField.getText().trim(), false));
         hostButton.addActionListener(e -> connect("localhost", true));
-        // Pressing Enter in a text field joins
         for (JTextField field : new JTextField[]{nameField, ipField, portField}) {
             field.addActionListener(e -> connect(ipField.getText().trim(), false));
         }
     }
 
-    // Returns -1 if the port text is not a valid port number
     private int readPort() {
         try {
             int p = Integer.parseInt(portField.getText().trim());
@@ -67,7 +64,6 @@ public class ConnectPanel extends JPanel {
         hostButton.setEnabled(enabled);
     }
 
-    // hosting = true: start a server inside this program, then join it as "localhost"
     private void connect(String host, boolean hosting) {
         if (!joinButton.isEnabled()) {
             return; // already connecting
@@ -98,12 +94,10 @@ public class ConnectPanel extends JPanel {
             }
         }
 
-        // The lobby shows this text at the top
         final String lobbyInfo = hosting
                 ? "Hosting on port " + port + " - friends join at: " + GameServer.localAddresses()
                 : "Connected to " + host + ":" + port;
 
-        // Connect on a separate thread so the window does not freeze
         new Thread(() -> {
             try {
                 client.connect(host, port, name);

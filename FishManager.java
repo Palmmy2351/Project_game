@@ -60,7 +60,6 @@ public class FishManager{
     
     private Random random = new Random();
 
-    // Finds a fish by its name (the client uses this to show the fish the server chose)
     public Fish findByName(String name) {
         for (Fish fish : fishes) {
             if (fish.getName().equals(name)) {
@@ -70,7 +69,6 @@ public class FishManager{
         return null;
     }
 
-    // Maps the speed of the red line to the speed of the fish that can be caught
     private int fishSpeedFor(int barSpeed) {
         if (barSpeed < 10) return 5;
         if (barSpeed < 15) return 10;
@@ -82,7 +80,6 @@ public class FishManager{
         return 50;
     }
 
-    // Picks a random fish of the matching speed (a higher weight means more likely)
     public Fish catchFish(int barSpeed) {
         int target = fishSpeedFor(barSpeed);
 
@@ -106,7 +103,6 @@ public class FishManager{
                 }
             }
         }
-
         return null;
     }
 }

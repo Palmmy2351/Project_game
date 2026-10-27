@@ -8,11 +8,9 @@ public class GameClient {
         void onScores(Map<String, Integer> scores);
         void onCatch(String player, String fish, int points);
         void onGameOver(Map<String, Integer> finalScores);
-        // player name -> character id (sent whenever someone joins or leaves)
+
         default void onPlayers(Map<String, Integer> characters) {}
-        // the server decided the speed and the zones of the fishing bar
         default void onCast(int speed, int yellowStart, int yellowWidth, int greenStart, int greenWidth) {}
-        // the server's verdict: fish is a fish name, "MISS" or "NONE"
         default void onResult(String fish, int points, boolean excellent) {}
     }
     private PrintWriter out;
@@ -26,9 +24,7 @@ public class GameClient {
         Socket socket = new Socket(host, port);
         out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()), true);
         BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-
         out.println("JOIN|" + username);
-
         Thread readerThread = new Thread(() -> {
             try {
                 String line;
@@ -47,12 +43,10 @@ public class GameClient {
         if (out != null) out.println("START");
     }
 
-    // ask the server for a new bar (speed and zones are chosen by the server)
     public void sendCast() {
         if (out != null) out.println("CAST");
     }
 
-    // tell the server how many steps the red line moved before SPACE was pressed
     public void sendReel(long ticks) {
         if (out != null) out.println("REEL|" + ticks);
     }
@@ -89,7 +83,6 @@ public class GameClient {
         }
     }
 
-    // Parses "name:number,name:number" and keeps the order sent by the server
     private Map<String, Integer> parseScores(String scoreString) {
         Map<String, Integer> scores = new LinkedHashMap<>();
         if (scoreString.isEmpty()) return scores;
