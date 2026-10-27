@@ -1,7 +1,7 @@
 import java.util.Random;
 public class FishManager{
         private Fish[] fishes = {
-            new Fish("Clownfish", 50000, 30, 5,new String[]{
+            new Fish("Clownfish", 5, 30, 5,new String[]{
                 "fish/image1.png",
                 "fish/image2.png",
                 "fish/image3.png",
