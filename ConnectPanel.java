@@ -66,7 +66,7 @@ public class ConnectPanel extends JPanel {
 
     private void connect(String host, boolean hosting) {
         if (!joinButton.isEnabled()) {
-            return; // already connecting
+            return; 
         }
 
         String name = nameField.getText().trim();
