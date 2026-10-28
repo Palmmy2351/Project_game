@@ -19,6 +19,7 @@ public class GamePanel extends JPanel {
     private FishManager fishManager = new FishManager();
     private Fish caughtFish;
     private Image caughtFishImage;
+
     private int barSpeed = 5;
     private int ticks = 0;                     
     private boolean waitingForCast = false;     
@@ -42,12 +43,10 @@ public class GamePanel extends JPanel {
     int sy(int v) { return v * getHeight() / IMG_H; }
 
     int barX = 52, barY = 780, barW = 1102, barH = 40;
-
     int barPos = 500;
     int dir = 1;
     int score = 0;
     boolean isMoving = false;
-
     String message = "";
     Color messageColor;
 
@@ -142,9 +141,7 @@ public class GamePanel extends JPanel {
         });
         timer.start();
 
-        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
-                .put(KeyStroke.getKeyStroke("SPACE"), "fish");
-
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("SPACE"), "fish");
         getActionMap().put("fish", new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -356,18 +353,14 @@ public class GamePanel extends JPanel {
 
         g.setColor(Color.WHITE);
         g.setFont(new Font("Arial", Font.BOLD, 20));
-
         String timeText = String.valueOf(timeLeft);
         FontMetrics timeMetrics = g.getFontMetrics();
-
         int boxX = 1000;
         int boxY = 835;
         int boxW = 117;
         int boxH = 61;
-
         int timeX = sx(boxX) + (sx(boxW) - timeMetrics.stringWidth(timeText)) / 2;
         int timeY = sy(boxY) + (sy(boxH) - timeMetrics.getHeight()) / 2 + timeMetrics.getAscent();
-
         g.drawString(timeText, timeX, timeY);
 
         if (!message.isEmpty()) {
