@@ -145,7 +145,10 @@ public class GamePanel extends JPanel {
         getActionMap().put("fish", new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (!gameStarted || gameOver) {
+                if (gameOver) {
+                    return;
+                }
+                if (!gameStarted) {
                     client.sendStart();
                     return;
                 }
@@ -235,6 +238,7 @@ public class GamePanel extends JPanel {
 
     private void updateLobbyButton() {
         startButton.setVisible(!gameStarted || gameOver);
+        startButton.setText(gameOver ? "Start Game" : "Start Game");
     }
 
     private int lobbyW() { return getWidth() / 2; }
@@ -498,7 +502,9 @@ public class GamePanel extends JPanel {
             }
         }
         g.setFont(new Font("Arial", Font.PLAIN, 12));
-        drawCentered(g, "Press SPACE or click Start Game", y + h - 56);
+        if (!gameOver) {
+            drawCentered(g, "Press SPACE or click Start Game", y + h - 56);
+        }
     }
 
     private void drawCentered(Graphics g, String s, int baselineY) {
